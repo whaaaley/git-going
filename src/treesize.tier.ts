@@ -1,5 +1,6 @@
 import type { Tier } from './config.ts'
 import type { Changes } from './uncommitted.check.ts'
+import { pluralize } from './utils/pluralize.utils.ts'
 
 // Decides which severity tier a working tree has reached, and whether that tier is worth announcing.
 
@@ -32,10 +33,6 @@ const guidance: Record<string, string[]> = {
 
 const fallbackDirective = 'Commit the finished work before making further edits.'
 
-const plural = (count: number, noun: string): string => {
-  return count === 1 ? `${count} ${noun}` : `${count} ${noun}s`
-}
-
 export const tierFor = (changes: Changes, tiers: Tier[]): Tier | null => {
   const { fileCount, insertions, deletions } = changes
   const lineCount = insertions + deletions
@@ -61,8 +58,8 @@ const describe = (tier: Tier, changes: Changes): string => {
   const filesTripped = fileCount >= tier.files
   const linesTripped = lineCount >= tier.lines
 
-  const files = plural(fileCount, 'file')
-  const lines = plural(lineCount, 'changed line')
+  const files = pluralize('file', fileCount)
+  const lines = pluralize('changed line', lineCount)
 
   if (filesTripped && linesTripped) return `${files} and ${lines}`
   if (filesTripped) return files

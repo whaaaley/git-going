@@ -88,6 +88,18 @@ const readNumber = (source: Record<string, unknown>, key: string, path: string, 
   return found
 }
 
+// A threshold is compared with >= against a count, so zero trips on every tree and stops being a threshold at all.
+// One is degenerate but coherent, and no maximum is imposed because a deliberately unreachable ceiling is a legitimate choice.
+const readThreshold = (source: Record<string, unknown>, key: string, path: string, fallback: number): number => {
+  const found = readNumber(source, key, path, fallback)
+
+  if (!Number.isInteger(found) || found < 1) {
+    throw new ConfigError(`${path}${key} is not usable, a threshold must be a whole number of at least 1`)
+  }
+
+  return found
+}
+
 const readStringArray = (source: Record<string, unknown>, key: string, path: string, fallback: string[]): string[] => {
   const found = source[key]
 
@@ -123,6 +135,11 @@ const readSection = (source: Record<string, unknown>, key: string, path: string)
   return found
 }
 
+// A tier is named in an error by its name, falling back to its position when the name is blank.
+const tierLabel = (name: string, index: number): string => {
+  return name === '' ? `[${index}]` : JSON.stringify(name)
+}
+
 const readTiers = (source: Record<string, unknown>, path: string, fallback: Tier[]): Tier[] => {
   const found = source['tiers']
 
@@ -131,7 +148,7 @@ const readTiers = (source: Record<string, unknown>, path: string, fallback: Tier
     throw new ConfigError(`${path}tiers must be an array`)
   }
 
-  return found.map((entry, index): Tier => {
+  const tiers = found.map((entry, index): Tier => {
     const at = `${path}tiers[${index}].`
 
     if (!isObject(entry)) {
@@ -146,12 +163,30 @@ const readTiers = (source: Record<string, unknown>, path: string, fallback: Tier
       throw new ConfigError(`${at}name must be a string`)
     }
 
+    // A tier declaring neither threshold defaults both to infinity, so no working tree could ever reach it.
+    if (entry['files'] === undefined && entry['lines'] === undefined) {
+      throw new ConfigError(`${path}tiers entry ${tierLabel(name, index)} is not usable, a tier needs files or lines to be reachable`)
+    }
+
     return {
       name,
       files: readNumber(entry, 'files', at, Number.POSITIVE_INFINITY),
       lines: readNumber(entry, 'lines', at, Number.POSITIVE_INFINITY),
     }
   })
+
+  // tierFor takes the last tier reached, so a later tier easier to reach than an earlier one would be announced in its place.
+  // Both thresholds must be non-decreasing, which is exactly when each tier's trip region sits inside the one before it.
+  for (const [index, tier] of tiers.entries()) {
+    const previous = tiers[index - 1]
+
+    if (!previous) continue
+    if (tier.files >= previous.files && tier.lines >= previous.lines) continue
+
+    throw new ConfigError(`${path}tiers entry ${tierLabel(tier.name, index)} is not usable, a tier must not be easier to reach than ${tierLabel(previous.name, index - 1)} before it`)
+  }
+
+  return tiers
 }
 
 export const merge = (raw: unknown): Config => {
@@ -172,13 +207,13 @@ export const merge = (raw: unknown): Config => {
 
   return {
     uncommitted: {
-      files: readNumber(uncommitted, 'files', 'uncommitted.', defaults.uncommitted.files),
-      lines: readNumber(uncommitted, 'lines', 'uncommitted.', defaults.uncommitted.lines),
+      files: readThreshold(uncommitted, 'files', 'uncommitted.', defaults.uncommitted.files),
+      lines: readThreshold(uncommitted, 'lines', 'uncommitted.', defaults.uncommitted.lines),
     },
     commit: {
       types: readVocabulary(commit, 'types', 'commit.', typePattern, 'a type is lowercase letters only', defaults.commit.types),
       scopes: readVocabulary(commit, 'scopes', 'commit.', scopePattern, 'a scope is lowercase letters and dashes only', defaults.commit.scopes),
-      maxLength: readNumber(commit, 'maxLength', 'commit.', defaults.commit.maxLength),
+      maxLength: readThreshold(commit, 'maxLength', 'commit.', defaults.commit.maxLength),
     },
     treesize: {
       tiers: readTiers(treesize, 'treesize.', defaults.treesize.tiers),

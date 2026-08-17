@@ -1,6 +1,6 @@
 # git-going
 
-A collection of commands for Claude and git hooks.
+Hook commands for git and Claude Code.
 
 | Subcommand | Runs from | What it does |
 | --- | --- | --- |

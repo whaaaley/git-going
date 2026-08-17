@@ -1,4 +1,5 @@
 import type { UncommittedConfig } from './config.ts'
+import { pluralize } from './utils/pluralize.utils.ts'
 
 // Decides whether an uncommitted working tree is large enough to warn about.
 
@@ -6,10 +7,6 @@ export type Changes = {
   fileCount: number
   insertions: number
   deletions: number
-}
-
-const plural = (count: number, noun: string): string => {
-  return count === 1 ? `${count} ${noun}` : `${count} ${noun}s`
 }
 
 export const check = (changes: Changes, thresholds: UncommittedConfig): string[] => {
@@ -21,8 +18,8 @@ export const check = (changes: Changes, thresholds: UncommittedConfig): string[]
 
   if (!filesTripped && !linesTripped) return []
 
-  const files = plural(fileCount, 'file')
-  const lines = plural(lineCount, 'changed line')
+  const files = pluralize('file', fileCount)
+  const lines = pluralize('changed line', lineCount)
 
   let subject = lines
   let isSingular = lineCount === 1
