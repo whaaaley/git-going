@@ -1,0 +1,33 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    # id-token lets the job ask GitHub to sign a statement about this run, which is what JSR verifies.
+    # Naming any permission narrows the whole set, so contents has to be stated for checkout.
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # A published version can never be replaced, so every check runs before publish is reached.
+      - run: deno fmt --check
+      - run: deno lint
+      - run: deno check .
+      - run: deno test -A
+
+      - run: deno publish
