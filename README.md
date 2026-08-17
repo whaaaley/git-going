@@ -1,6 +1,6 @@
 # git-going
 
-A command line utility that watches a repository and says something when it needs attention.
+A command line utility that checks the state of a repository and reports what it finds.
 You install it once and call it from hooks in any number of projects.
 
 It has three subcommands.
