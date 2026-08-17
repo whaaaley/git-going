@@ -1,9 +1,41 @@
+/**
+ * The `git-going` command line entry point.
+ *
+ * This module parses `Deno.args` and dispatches to the `uncommitted`,
+ * `validate`, and `treesize` commands. It exports only {@link version}, so
+ * importing it as a library gains you nothing. The reusable surface lives on
+ * the subpath exports:
+ *
+ * - `@whaaaley/git-going/validator` validates a commit subject.
+ * - `@whaaaley/git-going/check` decides whether an uncommitted tree is large enough to warn about.
+ * - `@whaaaley/git-going/tier` decides which severity tier a working tree has reached.
+ * - `@whaaaley/git-going/config` reads and validates `git-going.json`.
+ *
+ * `uncommitted` and `validate` are git hooks, run from `post-commit`,
+ * `post-rewrite`, and `commit-msg`. `treesize` is not a git hook, it is
+ * registered as a Claude Code `PostToolUse` hook in `.claude/settings.json`.
+ *
+ * @example
+ * ```sh
+ * git-going validate --file .git/COMMIT_EDITMSG
+ * git-going uncommitted
+ * ```
+ *
+ * @module
+ */
+
 import { ConfigError } from './config.ts'
 import { runValidate } from './commands/validate.ts'
 import { runTreesize } from './commands/treesize.ts'
 import { runUncommitted } from './commands/uncommitted.ts'
 import { safeAsync } from './utils/safe.utils.ts'
 
+/**
+ * The version `git-going --version` prints.
+ *
+ * This is a literal, kept in step with the `version` field of `deno.json` by
+ * hand.
+ */
 export const version = '0.1.0'
 
 const help = [

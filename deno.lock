@@ -40,6 +40,14 @@
       "jsr:@std/assert@^1.0.19",
       "jsr:@std/cli@^1.0.32",
       "jsr:@std/path@^1.1.6"
-    ]
+    ],
+    "packageJson": {
+      "dependencies": [
+        "npm:@jsr/std__assert@^1.0.19",
+        "npm:@jsr/std__cli@^1.0.32",
+        "npm:@jsr/std__path@^1.1.6",
+        "npm:@types/node@^26.2.0"
+      ]
+    }
   }
 }

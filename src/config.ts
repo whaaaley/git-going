@@ -1,37 +1,107 @@
+/**
+ * Reads and validates `git-going.json`.
+ *
+ * The file is found by walking up from the working directory, so it usually
+ * sits at the repository root. Every field defaults, so a project with no
+ * config file behaves exactly as {@link defaults} describes, and a config file
+ * only has to name what it changes.
+ *
+ * Validation is strict and every failure throws {@link ConfigError} naming the
+ * offending key by its dotted path, such as `commit.maxLength` or
+ * `treesize.tiers[1].name`. Unknown keys are rejected rather than ignored, so
+ * a typo surfaces instead of silently doing nothing.
+ *
+ * @example
+ * ```ts
+ * import { loadConfig } from '@whaaaley/git-going/config'
+ *
+ * const config = loadConfig(Deno.cwd())
+ * ```
+ *
+ * @example A config file naming only what it changes.
+ * ```json
+ * {
+ *   "commit": { "scopes": ["api", "cli"], "maxLength": 80 },
+ *   "uncommitted": { "files": 20 }
+ * }
+ * ```
+ *
+ * @module
+ */
+
 import { dirname, join } from '@std/path'
 import { scopePattern, typePattern } from './commit.pattern.ts'
 import { safe } from './utils/safe.utils.ts'
 
-// Reads git-going.json from the repository root, found by walking up from the working directory.
-// Every field defaults, so a project with no config file behaves exactly as the defaults describe.
-
+/**
+ * One severity level of the `treesize` hook.
+ *
+ * A tree reaches the tier when either `files` or `lines` is met, so the two
+ * are independent ceilings rather than a combined condition. A tier that omits
+ * one threshold in the config file defaults it to infinity, making that
+ * dimension unreachable, and a tier omitting both is rejected as unreachable
+ * entirely.
+ */
 export type Tier = {
   name: string
   files: number
   lines: number
 }
 
+/**
+ * Thresholds for the `uncommitted` warning.
+ *
+ * The tree trips when either the file count or the combined changed-line count
+ * reaches its value. Each is a whole number of at least 1.
+ */
 export type UncommittedConfig = {
   files: number
   lines: number
 }
 
+/**
+ * The vocabulary and limits a commit subject is validated against.
+ *
+ * `types` is the permitted set of commit types, each lowercase letters only.
+ * `scopes` is the permitted set of scopes, each lowercase letters and dashes
+ * only, and an empty list accepts any scope rather than forbidding all of
+ * them. `maxLength` is the longest permitted subject line.
+ */
 export type CommitConfig = {
   types: string[]
   scopes: string[]
   maxLength: number
 }
 
+/**
+ * The tiers the `treesize` hook announces, ordered ascending by severity.
+ *
+ * The order is load-bearing. Parsing rejects a list in which a later tier is
+ * easier to reach than the one before it.
+ */
 export type TreesizeConfig = {
   tiers: Tier[]
 }
 
+/**
+ * The full resolved configuration, with every field populated.
+ *
+ * Whatever a `git-going.json` omits is filled from {@link defaults}, so no
+ * field is ever missing by the time a caller sees it.
+ */
 export type Config = {
   uncommitted: UncommittedConfig
   commit: CommitConfig
   treesize: TreesizeConfig
 }
 
+/**
+ * The configuration used when `git-going.json` is absent, and the source of
+ * every individual field a config file does not name.
+ *
+ * The commit types are the Conventional Commits set. `scopes` is empty, which
+ * accepts any scope, so a project is not forced to enumerate them.
+ */
 export const defaults: Config = {
   uncommitted: {
     files: 12,
@@ -63,6 +133,19 @@ export const defaults: Config = {
   },
 }
 
+/**
+ * Thrown when `git-going.json` is malformed, holds an unknown key, or holds a
+ * value that could not work.
+ *
+ * The message names the offending key by its dotted path and states what was
+ * expected, so it is suitable for printing straight to a terminal.
+ *
+ * The commands handle it differently by intent. `uncommitted` and `treesize`
+ * report the message and still exit 0, because their output is advice and a
+ * broken config should not block a commit or break an agent edit. `validate`
+ * lets it exit 1, because a commit cannot be checked against a config that
+ * does not load.
+ */
 export class ConfigError extends Error {}
 
 const isObject = (value: unknown): value is Record<string, unknown> => {
@@ -189,6 +272,15 @@ const readTiers = (source: Record<string, unknown>, path: string, fallback: Tier
   return tiers
 }
 
+/**
+ * Validates already-decoded JSON and fills every unnamed field from
+ * {@link defaults}.
+ *
+ * `undefined` yields the defaults untouched, which is the no-config-file case.
+ *
+ * @param raw The decoded contents of a `git-going.json`.
+ * @throws {ConfigError} When `raw` is not an object, holds an unknown key, holds a value of the wrong type, sets a threshold below 1 or non-integer, names a commit type or scope the subject pattern could never match, or declares a tier that is unreachable or easier to reach than the tier before it.
+ */
 export const merge = (raw: unknown): Config => {
   if (raw === undefined) return defaults
   if (!isObject(raw)) {
@@ -221,6 +313,12 @@ export const merge = (raw: unknown): Config => {
   }
 }
 
+/**
+ * Decodes the text of a `git-going.json` and validates it.
+ *
+ * @param raw The file's text.
+ * @throws {ConfigError} When the text is not valid JSON, or fails any of the validation {@link merge} performs.
+ */
 export const parse = (raw: string): Config => {
   const { data: decoded, error: decodeError } = safe((): unknown => JSON.parse(raw))
 
@@ -229,6 +327,17 @@ export const parse = (raw: string): Config => {
   return merge(decoded)
 }
 
+/**
+ * Walks up from a directory looking for `git-going.json`.
+ *
+ * The search starts at `start` and climbs one parent at a time until it finds
+ * the file or reaches the filesystem root.
+ *
+ * Requires read access to each directory on the way up.
+ *
+ * @param start The directory to start from, usually `Deno.cwd()`.
+ * @returns The absolute path to the file, or `''` when no config file exists above `start`.
+ */
 export const findConfigPath = (start: string): string => {
   let current = start
 
@@ -248,6 +357,26 @@ export const findConfigPath = (start: string): string => {
   }
 }
 
+/**
+ * Finds `git-going.json` above a directory, reads it, and validates it.
+ *
+ * A missing or unreadable file yields {@link defaults}, because a project
+ * without a config is a supported case. A file that exists and can be read but
+ * does not parse or does not validate throws instead, because that is a
+ * mistake the author wants to hear about.
+ *
+ * Requires read access to the config file and the directories above `start`.
+ *
+ * @param start The directory to start the search from, usually `Deno.cwd()`.
+ * @throws {ConfigError} When a config file is found and read but is invalid.
+ *
+ * @example
+ * ```ts
+ * const config = loadConfig(Deno.cwd())
+ *
+ * console.log(config.commit.maxLength)
+ * ```
+ */
 export const loadConfig = (start: string): Config => {
   const path = findConfigPath(start)
 
