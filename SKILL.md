@@ -7,10 +7,10 @@ Reason: git honors one hooks directory per repository, so pointing it elsewhere 
 Rule: add the `git-going` line to the hooks already in that directory when `core.hooksPath` is already set
 Reason: composing with the existing directory keeps the project's other hooks running
 
-Rule: call `git-going commit --file "$1"` from `commit-msg`
+Rule: call `git-going validate --file "$1"` from `commit-msg`
 Reason: git passes the message file path as the first argument, and the validator reads only the subject line
 
-Rule: pipe a message into `git-going commit` on stdin as the alternative input
+Rule: pipe a message into `git-going validate` on stdin as the alternative input
 Reason: supports workflows where the message comes from another command rather than a file
 
 Rule: call `git-going uncommitted` from `post-commit` and `post-rewrite`
@@ -52,11 +52,14 @@ Reason: a rewritten line costs both, so summing them measures the work a reviewe
 Rule: expect only tracked changes to be counted
 Reason: scratch files would false-positive, and git collapses an untracked directory to a single line that undercounts it
 
-Rule: expect `uncommitted` to exit 0 even when it warns
+Rule: expect `uncommitted` to exit 0 even when it warns, and even when the config is bad
 Reason: the warning is advice rather than a failure, and one honest exit code suits every hook that runs it
 
-Rule: expect `commit` to exit 1 and name each broken rule when the subject does not pass
+Rule: expect `validate` to exit 1 and name each broken rule when the subject does not pass
 Reason: `commit-msg` fails the commit on a nonzero exit, which is the point of the check
+
+Rule: expect `validate` to exit 1 on a bad config rather than passing the commit
+Reason: a `commit-msg` hook that silently accepts everything is worse than one that complains
 
 Rule: expect a merge or revert subject to pass unchecked
 Reason: git generates those, and rewriting them would fight the tool that wrote them

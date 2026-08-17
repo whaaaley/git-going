@@ -1,5 +1,5 @@
 import { ConfigError } from './config.ts'
-import { runCommit } from './commands/commit.ts'
+import { runValidate } from './commands/validate.ts'
 import { runTreesize } from './commands/treesize.ts'
 import { runUncommitted } from './commands/uncommitted.ts'
 
@@ -10,10 +10,10 @@ const help = [
   '',
   'commands:',
   '  uncommitted  warn when the tracked working tree holds too much uncommitted work',
-  '  commit       validate a conventional commit subject',
+  '  validate     validate a commit subject',
   '  treesize     a Claude Code PostToolUse hook that reports working tree size',
   '',
-  'uncommitted and commit are git hooks, run from post-commit, post-rewrite, and',
+  'uncommitted and validate are git hooks, run from post-commit, post-rewrite, and',
   'commit-msg. treesize is not a git hook, it is registered in .claude/settings.json.',
   '',
   'options:',
@@ -23,7 +23,7 @@ const help = [
   'Run git-going <command> --help for a command.',
 ].join('\n')
 
-const commands = ['uncommitted', 'commit', 'treesize']
+const commands = ['uncommitted', 'validate', 'treesize']
 
 const main = async (): Promise<number> => {
   const [command, ...rest] = Deno.args
@@ -40,14 +40,21 @@ const main = async (): Promise<number> => {
     return 0
   }
 
+  // The warning is advice, so a bad config is reported and the hook still passes.
   if (command === 'uncommitted') {
-    await runUncommitted(rest)
+    try {
+      await runUncommitted(rest)
+    } catch (error) {
+      if (!(error instanceof ConfigError)) throw error
+
+      console.error(`error: ${error.message}`)
+    }
 
     return 0
   }
 
-  if (command === 'commit') {
-    return await runCommit(rest)
+  if (command === 'validate') {
+    return await runValidate(rest)
   }
 
   // A treesize failure would surface as a broken agent edit, so it stays silent and exits 0.
@@ -66,17 +73,19 @@ const main = async (): Promise<number> => {
   return 1
 }
 
-let code = 0
+if (import.meta.main) {
+  let code = 0
 
-try {
-  code = await main()
-} catch (error) {
-  if (error instanceof ConfigError) {
-    console.error(`error: ${error.message}`)
-    code = 1
-  } else {
-    throw error
+  try {
+    code = await main()
+  } catch (error) {
+    if (error instanceof ConfigError) {
+      console.error(`error: ${error.message}`)
+      code = 1
+    } else {
+      throw error
+    }
   }
-}
 
-Deno.exit(code)
+  Deno.exit(code)
+}

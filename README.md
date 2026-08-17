@@ -1,20 +1,12 @@
 # git-going
 
-A command line utility that checks the state of a repository and reports what it finds.
-You install it once and call it from hooks in any number of projects.
-
-It has three subcommands.
+A collection of commands for Claude and git hooks.
 
 | Subcommand | Runs from | What it does |
 | --- | --- | --- |
 | `uncommitted` | the `post-commit` and `post-rewrite` git hooks | counts tracked changes still in the working tree and warns past a threshold |
-| `commit` | the `commit-msg` git hook | validates a conventional commit subject and fails the commit when it does not pass |
-| `treesize` | a Claude Code `PostToolUse` hook | reports the working tree size to a coding agent as the tree grows |
-
-`uncommitted` and `commit` are git hooks.
-`treesize` is not, and is registered in `.claude/settings.json` instead.
-It exists because an agent can work for an hour without committing anything, and no git hook fires when git is never used.
-It shares its counting and its thresholds with `uncommitted`, which is why it lives on the same binary.
+| `validate` | the `commit-msg` git hook | validates a commit subject and fails the commit when it does not pass |
+| `treesize` | a Claude Code `PostToolUse` hook | tells a coding agent to commit once the working tree crosses a tier |
 
 ## Install
 
@@ -22,19 +14,7 @@ It shares its counting and its thresholds with `uncommitted`, which is why it li
 deno install -g --allow-run=git --allow-read --allow-write jsr:@whaaaley/git-going
 ```
 
-The permissions are baked into the shim that `deno install -g` writes, at install time.
-A hook script that calls `git-going` therefore passes no flags of its own.
-
-`--allow-run=git` runs `git diff` to count the working tree.
-`--allow-read` reads the commit message file, `git-going.json`, and the treesize state file.
-`--allow-write` writes the treesize state file.
-
-Check the install with:
-
-```sh
-git-going --version
-git-going --help
-```
+The permissions are baked into the shim at install time, so a hook script passes no flags of its own.
 
 ## Wiring a project
 
@@ -62,7 +42,7 @@ Then write the three hook files.
 
 ```sh
 #!/usr/bin/env bash
-git-going commit --file "$1"
+git-going validate --file "$1"
 ```
 
 `.githooks/post-commit`:
@@ -85,7 +65,7 @@ Make them executable:
 chmod +x .githooks/commit-msg .githooks/post-commit .githooks/post-rewrite
 ```
 
-`commit` exits 1 when the subject does not pass, which fails the commit.
+`validate` exits 1 when the subject does not pass, which fails the commit.
 `uncommitted` exits 0 whether or not it warns, because the warning is advice.
 
 ## The Claude Code hook
@@ -162,27 +142,7 @@ Every field defaults, so a project with no config file works and gets the values
 }
 ```
 
-A list replaces the default rather than adding to it.
-An empty `commit.scopes` accepts any scope, so a project that does not track scopes leaves it empty.
-A key that is not one of these, or a value of the wrong type, is an error naming the key.
-
-`uncommitted.files` and `uncommitted.lines` trip the warning independently.
-Either count reaching its threshold on its own is enough.
-The changed-line count is insertions plus deletions, because a rewritten line costs both.
-
-The `treesize` tiers are ordered from smallest to largest, and the last tier a tree reaches is the one that describes it.
-A tier is announced once per session, and speaks again after the tree drops below it and climbs back.
-
-## Wiring it with an agent
-
-An agent can do the setup above. The steps are:
-
-1. Run `git config core.hooksPath` and report what it prints.
-2. If it prints a path, append the `git-going` lines to the hook files already in that directory. If it prints nothing, create `.githooks`, set `core.hooksPath` to it, and write the three hook files.
-3. `chmod +x` the hook files.
-4. Merge the `PostToolUse` entry into `.claude/settings.json`, creating the file if it does not exist.
-5. Add `.claude/treesize.state.json` to `.gitignore`.
-6. Write a `git-going.json` only if the project wants values other than the defaults.
-
-Step 2 is the one that needs the check first.
-An agent that sets `core.hooksPath` without looking will disable hooks the project already had.
+The `commit` defaults follow [Conventional Commits](https://www.conventionalcommits.org), with a stricter stance on breaking changes: a `!` marker is rejected in favor of a `BREAKING CHANGE:` footer, and `maxLength` is a git convention the spec does not set.
+A list replaces the default rather than adding to it, and an empty `commit.scopes` accepts any scope.
+Either `uncommitted` count trips the warning on its own, and the line count is insertions plus deletions.
+A `treesize` tier is announced once per session, and again after the tree drops below it and climbs back.

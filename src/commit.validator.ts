@@ -22,6 +22,13 @@ export const validate = (message: string, config: CommitConfig): Failure[] => {
     return failures
   }
 
+  // The marker only counts in the header, so a bang inside a description is left alone.
+  if (/^[a-z]+(?:\([a-z-]+\))?!:/.test(subject)) {
+    failures.push({ rule: 'breaking', detail: 'a breaking change belongs in a BREAKING CHANGE footer' })
+
+    return failures
+  }
+
   const shape = /^([a-z]+)(?:\(([a-z-]+)\))?: (.+)$/.exec(subject)
 
   if (!shape) {
@@ -51,10 +58,6 @@ export const validate = (message: string, config: CommitConfig): Failure[] => {
 
   if (subject.length > config.maxLength) {
     failures.push({ rule: 'length', detail: `a subject fits within ${config.maxLength} characters` })
-  }
-
-  if (subject.includes('!:') || /\)!:/.test(subject)) {
-    failures.push({ rule: 'breaking', detail: 'a breaking change belongs in a BREAKING CHANGE footer' })
   }
 
   return failures

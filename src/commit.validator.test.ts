@@ -21,6 +21,11 @@ describe('All Commit Subject Tests', () => {
       assertEquals(validate('fix(tools): count deletions toward the threshold', config), [])
     })
 
+    it('accepts a bang and colon inside the description', () => {
+      // Assert
+      assertEquals(validate('feat: adds a bang!: inside', config), [])
+    })
+
     it('checks only the first line of a multi-line message', () => {
       // Assert
       assertEquals(validate('docs: rewrite the readme\n\nA body that ends with a period.', config), [])
@@ -66,14 +71,14 @@ describe('All Commit Subject Tests', () => {
       assertEquals(rulesOf(long), ['length'])
     })
 
-    it('rejects the breaking change indicator as a malformed subject', () => {
+    it('names the breaking rule for the indicator after a type', () => {
       // Assert
-      assertEquals(rulesOf('feat!: drop the copied hook scripts'), ['format'])
+      assertEquals(rulesOf('feat!: drop the copied hook scripts'), ['breaking'])
     })
 
-    it('rejects the breaking change indicator after a scope', () => {
+    it('names the breaking rule for the indicator after a scope', () => {
       // Assert
-      assertEquals(rulesOf('feat(tools)!: drop the copied hook scripts'), ['format'])
+      assertEquals(rulesOf('feat(tools)!: drop the copied hook scripts'), ['breaking'])
     })
   })
 

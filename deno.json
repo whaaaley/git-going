@@ -3,11 +3,18 @@
   "version": "0.1.0",
   "license": "MIT",
   "exports": {
-    ".": "./src/main.ts"
+    ".": "./src/main.ts",
+    "./validator": "./src/commit.validator.ts",
+    "./check": "./src/uncommitted.check.ts",
+    "./tier": "./src/treesize.tier.ts",
+    "./config": "./src/config.ts"
   },
   "publish": {
     "exclude": [
-      "**/*.test.ts"
+      "**/*.test.ts",
+      ".zed/",
+      ".github/",
+      "SKILL.md"
     ]
   },
   "compilerOptions": {

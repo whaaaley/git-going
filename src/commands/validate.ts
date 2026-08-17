@@ -3,8 +3,8 @@ import { loadConfig } from '../config.ts'
 import { subjectOf, validate } from '../commit.validator.ts'
 
 const help = [
-  'usage: git-going commit --file <path>',
-  '       git-going commit < message',
+  'usage: git-going validate --file <path>',
+  '       git-going validate < message',
   '',
   'Validates a conventional commit subject. Only the first line is checked.',
   'Exits 1 and names each broken rule when the subject does not pass.',
@@ -16,7 +16,7 @@ const help = [
   '  -h, --help         print this message',
 ].join('\n')
 
-export const runCommit = async (args: string[]): Promise<number> => {
+export const runValidate = async (args: string[]): Promise<number> => {
   const flags = parseArgs(args, {
     boolean: ['help'],
     string: ['file'],
