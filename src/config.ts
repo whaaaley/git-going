@@ -1,4 +1,5 @@
 import { dirname, join } from '@std/path'
+import { scopePattern, typePattern } from './commit.pattern.ts'
 import { safe } from './utils/safe.utils.ts'
 
 // Reads git-going.json from the repository root, found by walking up from the working directory.
@@ -98,6 +99,19 @@ const readStringArray = (source: Record<string, unknown>, key: string, path: str
   return found.filter((entry): entry is string => typeof entry === 'string')
 }
 
+// A vocabulary entry the subject pattern can never match would surface later as a confusing format failure, so it is refused here by name.
+const readVocabulary = (source: Record<string, unknown>, key: string, path: string, pattern: RegExp, shape: string, fallback: string[]): string[] => {
+  const entries = readStringArray(source, key, path, fallback)
+
+  for (const entry of entries) {
+    if (pattern.test(entry)) continue
+
+    throw new ConfigError(`${path}${key} entry ${JSON.stringify(entry)} is not usable, ${shape}`)
+  }
+
+  return entries
+}
+
 const readSection = (source: Record<string, unknown>, key: string, path: string): Record<string, unknown> => {
   const found = source[key]
 
@@ -162,8 +176,8 @@ export const merge = (raw: unknown): Config => {
       lines: readNumber(uncommitted, 'lines', 'uncommitted.', defaults.uncommitted.lines),
     },
     commit: {
-      types: readStringArray(commit, 'types', 'commit.', defaults.commit.types),
-      scopes: readStringArray(commit, 'scopes', 'commit.', defaults.commit.scopes),
+      types: readVocabulary(commit, 'types', 'commit.', typePattern, 'a type is lowercase letters only', defaults.commit.types),
+      scopes: readVocabulary(commit, 'scopes', 'commit.', scopePattern, 'a scope is lowercase letters and dashes only', defaults.commit.scopes),
       maxLength: readNumber(commit, 'maxLength', 'commit.', defaults.commit.maxLength),
     },
     treesize: {

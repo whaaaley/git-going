@@ -1,4 +1,5 @@
 import type { CommitConfig } from './config.ts'
+import { breakingPattern, capitalPattern, punctuationPattern, subjectPattern } from './commit.pattern.ts'
 
 // Validates a commit subject against the conventional format.
 
@@ -23,13 +24,13 @@ export const validate = (message: string, config: CommitConfig): Failure[] => {
   }
 
   // The marker only counts in the header, so a bang inside a description is left alone.
-  if (/^[a-z]+(?:\([a-z-]+\))?!:/.test(subject)) {
+  if (breakingPattern.test(subject)) {
     failures.push({ rule: 'breaking', detail: 'a breaking change belongs in a BREAKING CHANGE footer' })
 
     return failures
   }
 
-  const shape = /^([a-z]+)(?:\(([a-z-]+)\))?: (.+)$/.exec(subject)
+  const shape = subjectPattern.exec(subject)
 
   if (!shape) {
     failures.push({ rule: 'format', detail: 'a subject reads as type(scope): description' })
@@ -48,11 +49,11 @@ export const validate = (message: string, config: CommitConfig): Failure[] => {
     failures.push({ rule: 'scope', detail: `scope must be one of ${config.scopes.join(', ')}` })
   }
 
-  if (description && /^[A-Z]/.test(description)) {
+  if (description && capitalPattern.test(description)) {
     failures.push({ rule: 'case', detail: 'a description starts with a lowercase letter' })
   }
 
-  if (description && /[.!,;:]$/.test(description)) {
+  if (description && punctuationPattern.test(description)) {
     failures.push({ rule: 'punctuation', detail: 'a description ends without punctuation' })
   }
 

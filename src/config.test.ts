@@ -56,6 +56,16 @@ describe('All Config Tests', () => {
       assertThrows(() => merge({ commit: { types: [1, 2] } }), ConfigError, 'commit.types must be an array of strings')
     })
 
+    it('names a type the subject pattern can never match', () => {
+      // Assert
+      assertThrows(() => merge({ commit: { types: ['wip2'] } }), ConfigError, 'commit.types entry "wip2" is not usable, a type is lowercase letters only')
+    })
+
+    it('names a scope the subject pattern can never match', () => {
+      // Assert
+      assertThrows(() => merge({ commit: { scopes: ['apps/web'] } }), ConfigError, 'commit.scopes entry "apps/web" is not usable, a scope is lowercase letters and dashes only')
+    })
+
     it('names a tier missing its name', () => {
       // Assert
       assertThrows(() => merge({ treesize: { tiers: [{ files: 5 }] } }), ConfigError, 'treesize.tiers[0].name must be a string')
