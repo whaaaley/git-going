@@ -30,7 +30,7 @@ jobs:
 
       # A published version can never be replaced, so every check runs before publish is reached.
       - run: deno fmt --check
-      - run: deno lint
+      - run: deno task lint
       - run: deno check .
       - run: deno test -A
 
