@@ -62,5 +62,5 @@ A state file that cannot be written only costs the next run its memory of the cu
 
 ## Related Docs
 
-- [Config](config.md) -- the tier thresholds and what a bad value does
-- [Git Hooks](git-hooks.md) -- `uncommitted` and `validate`, which are git hooks
+- [Config](config.md) - the tier thresholds and what a bad value does
+- [Git Hooks](git-hooks.md) - `uncommitted` and `validate`, which are git hooks

@@ -94,5 +94,5 @@ No maximum is imposed on a threshold, because a deliberately unreachable ceiling
 
 ## Related Docs
 
-- [Git Hooks](git-hooks.md) -- wiring `uncommitted` and `validate`
-- [Claude Code Hook](claude-code.md) -- wiring `treesize`
+- [Git Hooks](git-hooks.md) - wiring `uncommitted` and `validate`
+- [Claude Code Hook](claude-code.md) - wiring `treesize`

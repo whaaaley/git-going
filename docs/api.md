@@ -37,4 +37,4 @@ All three throw `ConfigError` on a value the tool cannot use, described in [Conf
 
 ## Related Docs
 
-- [Config](config.md) -- the shape these modules read and what makes a value invalid
+- [Config](config.md) - the shape these modules read and what makes a value invalid

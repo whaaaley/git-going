@@ -74,5 +74,5 @@ A malformed `git-going.json` is reported on stderr and the hook still exits 0 fo
 
 ## Related Docs
 
-- [Config](config.md) -- thresholds, the commit subject rules, and what a bad value does
-- [Claude Code Hook](claude-code.md) -- the `treesize` hook, which is not a git hook
+- [Config](config.md) - thresholds, the commit subject rules, and what a bad value does
+- [Claude Code Hook](claude-code.md) - the `treesize` hook, which is not a git hook
