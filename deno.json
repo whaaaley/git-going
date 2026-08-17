@@ -23,6 +23,7 @@
     "check": "deno check .",
     "test": "deno test -A",
     "fmt": "deno fmt",
+    "fmt:check": "deno fmt --check",
     "lint": "deno lint"
   },
   "lint": {
