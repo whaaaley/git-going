@@ -24,3 +24,18 @@ deno install -g --allow-run=git --allow-read --allow-write jsr:@whaaaley/git-goi
 ```
 
 The permissions are baked into the shim at install time, so a hook script passes no flags of its own.
+
+## Runtimes
+
+The subpath exports `./validator`, `./check`, `./tier`, and `./config` are verified on Node 24.19.0, Node 26.7.0, and Bun 1.3.14, with all 138 tests passing under each.
+
+The `.` entrypoint is Deno only.
+It reads `Deno.args`, runs git through `Deno.Command`, and exits through `Deno.exit`, so the CLI does not run under Node or Bun.
+
+Two functions in `./config` are also Deno only.
+`loadConfig` and `findConfigPath` read the filesystem through `Deno.statSync` and `Deno.readTextFileSync`, and the suite covers `defaults`, `merge`, and `parse` rather than those two.
+Importing the module works anywhere, because the `Deno` references sit inside those function bodies rather than at module scope.
+
+Run `deno task runtimes` to reproduce it.
+The sources are copied to a temporary directory, the JSR dependencies are installed there as npm packages, and the suite runs under each runtime.
+Nothing is written inside the repository, because a `package.json` beside `deno.json` switches Deno to node-modules resolution and breaks `deno check`.

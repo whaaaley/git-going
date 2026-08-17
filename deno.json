@@ -14,7 +14,8 @@
       "**/*.test.ts",
       ".zed/",
       ".github/",
-      "SKILL.md"
+      "SKILL.md",
+      "tools/"
     ]
   },
   "compilerOptions": {
@@ -29,6 +30,7 @@
   "tasks": {
     "check": "deno check .",
     "test": "deno test -A",
+    "runtimes": "deno run --allow-read --allow-write --allow-env=HOME --allow-run tools/runtimes/runtimes.ts",
     "fmt": "deno fmt",
     "fmt:check": "deno fmt --check",
     "lint": "deno lint"
