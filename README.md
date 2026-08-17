@@ -32,10 +32,6 @@ The subpath exports `./validator`, `./check`, `./tier`, and `./config` are verif
 The `.` entrypoint is Deno only.
 It reads `Deno.args`, runs git through `Deno.Command`, and exits through `Deno.exit`, so the CLI does not run under Node or Bun.
 
-Two functions in `./config` are also Deno only.
-`loadConfig` and `findConfigPath` read the filesystem through `Deno.statSync` and `Deno.readTextFileSync`, and the suite covers `defaults`, `merge`, and `parse` rather than those two.
-Importing the module works anywhere, because the `Deno` references sit inside those function bodies rather than at module scope.
+`loadConfig` and `findConfigPath` read the filesystem and are Deno only, though importing `./config` works anywhere.
 
 Run `deno task runtimes` to reproduce it.
-The sources are copied to a temporary directory, the JSR dependencies are installed there as npm packages, and the suite runs under each runtime.
-Nothing is written inside the repository, because a `package.json` beside `deno.json` switches Deno to node-modules resolution and breaks `deno check`.
