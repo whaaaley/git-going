@@ -13,12 +13,16 @@ jobs:
 
     # id-token lets the job ask GitHub to sign a statement about this run, which is what JSR verifies.
     # Naming any permission narrows the whole set, so contents has to be stated for checkout.
+    # contents is write rather than read because the release step creates a tag and a release.
     permissions:
-      contents: read
+      contents: write
       id-token: write
 
     steps:
+      # Full history so the release step can describe the previous version tag and log a commit range.
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: denoland/setup-deno@v2
         with:
@@ -31,3 +35,25 @@ jobs:
       - run: deno test -A
 
       - run: deno publish
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(jq -r .version deno.json)
+          TAG="v${VERSION}"
+          # A dispatch repeated for the same version no-ops in deno publish, so the release skips too
+          # instead of failing the run on a duplicate tag.
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "Tag ${TAG} already exists, skipping release"
+            exit 0
+          fi
+          PREV_TAG=$(git describe --tags --match 'v*' --exclude "${TAG}" --abbrev=0 2>/dev/null || echo "")
+          RANGE="${PREV_TAG:+$PREV_TAG..HEAD}"
+          NOTES=$(git log ${RANGE:-HEAD} --oneline)
+          # An empty range (previous tag already at HEAD) yields no commits;
+          # fall back to HEAD so the release body still renders a commit instead of empty.
+          NOTES=${NOTES:-$(git log -1 HEAD --oneline)}
+          gh release create "${TAG}" \
+            --title "${TAG}" \
+            --notes "${NOTES}"
