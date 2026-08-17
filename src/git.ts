@@ -1,20 +1,17 @@
 import type { Changes } from './uncommitted.check.ts'
+import { safeAsync } from './utils/safe.utils.ts'
 
 // Counts the tracked changes between the working tree and HEAD.
 
 const run = async (args: string[], cwd: string): Promise<string> => {
   const command = new Deno.Command('git', { args, cwd, stdout: 'piped', stderr: 'null' })
+  const { data: output, error: runError } = await safeAsync(() => command.output())
 
-  try {
-    const { code, stdout } = await command.output()
+  // A git failure leaves the tree uncountable, so the caller reports nothing rather than guessing.
+  if (runError) return ''
+  if (output.code !== 0) return ''
 
-    // A git failure leaves the tree uncountable, so the caller reports nothing rather than guessing.
-    if (code !== 0) return ''
-
-    return new TextDecoder().decode(stdout)
-  } catch {
-    return ''
-  }
+  return new TextDecoder().decode(output.stdout)
 }
 
 // A shortstat line names only its nonzero parts, as in "3 files changed, 12 insertions(+)".

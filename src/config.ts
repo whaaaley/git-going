@@ -1,4 +1,5 @@
 import { dirname, join } from '@std/path'
+import { safe } from './utils/safe.utils.ts'
 
 // Reads git-going.json from the repository root, found by walking up from the working directory.
 // Every field defaults, so a project with no config file behaves exactly as the defaults describe.
@@ -172,13 +173,9 @@ export const merge = (raw: unknown): Config => {
 }
 
 export const parse = (raw: string): Config => {
-  let decoded: unknown
+  const { data: decoded, error: decodeError } = safe((): unknown => JSON.parse(raw))
 
-  try {
-    decoded = JSON.parse(raw)
-  } catch {
-    throw new ConfigError('git-going.json is not valid JSON')
-  }
+  if (decodeError) throw new ConfigError('git-going.json is not valid JSON')
 
   return merge(decoded)
 }
@@ -189,13 +186,10 @@ export const findConfigPath = (start: string): string => {
   while (true) {
     const candidate = join(current, 'git-going.json')
 
-    try {
-      const info = Deno.statSync(candidate)
+    // A missing file at this level only means the walk continues upward.
+    const { data: info, error: statError } = safe(() => Deno.statSync(candidate))
 
-      if (info.isFile) return candidate
-    } catch {
-      // A missing file at this level only means the walk continues upward.
-    }
+    if (!statError && info.isFile) return candidate
 
     const parent = dirname(current)
 
@@ -210,13 +204,9 @@ export const loadConfig = (start: string): Config => {
 
   if (path === '') return defaults
 
-  let raw = ''
+  const { data: raw, error: readError } = safe(() => Deno.readTextFileSync(path))
 
-  try {
-    raw = Deno.readTextFileSync(path)
-  } catch {
-    return defaults
-  }
+  if (readError) return defaults
 
   return parse(raw)
 }

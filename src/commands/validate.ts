@@ -1,6 +1,7 @@
 import { parseArgs } from '@std/cli/parse-args'
 import { loadConfig } from '../config.ts'
 import { subjectOf, validate } from '../commit.validator.ts'
+import { safeAsync } from '../utils/safe.utils.ts'
 
 const help = [
   'usage: git-going validate --file <path>',
@@ -38,13 +39,15 @@ export const runValidate = async (args: string[]): Promise<number> => {
   if (path === '') {
     message = await new Response(Deno.stdin.readable).text()
   } else {
-    try {
-      message = await Deno.readTextFile(path)
-    } catch {
+    const { data: fromFile, error: readError } = await safeAsync(() => Deno.readTextFile(path))
+
+    if (readError) {
       console.error(`error: cannot read the commit message file ${path}`)
 
       return 1
     }
+
+    message = fromFile
   }
 
   const config = loadConfig(Deno.cwd())

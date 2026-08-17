@@ -4,6 +4,7 @@ import { loadConfig } from '../config.ts'
 import { readChanges } from '../git.ts'
 import { empty, parse, serialize, type State } from '../treesize.state.ts'
 import { decide } from '../treesize.tier.ts'
+import { safe, safeAsync } from '../utils/safe.utils.ts'
 
 // Reads a Claude Code PostToolUse payload on stdin and describes the working tree when it enters a new size tier.
 // Every failure path here returns in silence, because a warning must never cost the edit that triggered it.
@@ -40,19 +41,19 @@ const stringAt = (source: object, key: string): string => {
 const readPayload = async (): Promise<Payload> => {
   const blank = { toolName: '', sessionId: '', cwd: '' }
 
-  try {
-    const raw = await new Response(Deno.stdin.readable).text()
-    const parsed: unknown = JSON.parse(raw)
+  const { data: raw, error: readError } = await safeAsync(() => new Response(Deno.stdin.readable).text())
 
-    if (!parsed || typeof parsed !== 'object') return blank
+  if (readError) return blank
 
-    return {
-      toolName: stringAt(parsed, 'tool_name'),
-      sessionId: stringAt(parsed, 'session_id'),
-      cwd: stringAt(parsed, 'cwd'),
-    }
-  } catch {
-    return blank
+  const { data: parsed, error: parseError } = safe((): unknown => JSON.parse(raw))
+
+  if (parseError) return blank
+  if (!parsed || typeof parsed !== 'object') return blank
+
+  return {
+    toolName: stringAt(parsed, 'tool_name'),
+    sessionId: stringAt(parsed, 'session_id'),
+    cwd: stringAt(parsed, 'cwd'),
   }
 }
 
@@ -61,20 +62,19 @@ const statePath = (root: string): string => {
 }
 
 const readState = async (path: string, sessionId: string): Promise<State> => {
-  try {
-    return parse(await Deno.readTextFile(path), sessionId)
-  } catch {
-    return empty
-  }
+  const { data: raw, error: readError } = await safeAsync(() => Deno.readTextFile(path))
+
+  if (readError) return empty
+
+  return parse(raw, sessionId)
 }
 
 const writeState = async (path: string, state: State): Promise<void> => {
-  try {
+  // A state file this session cannot write only costs the next run its memory of this tier.
+  await safeAsync(async () => {
     await Deno.mkdir(dirname(path), { recursive: true })
     await Deno.writeTextFile(path, serialize(state))
-  } catch {
-    return
-  }
+  })
 }
 
 export const runTreesize = async (args: string[]): Promise<void> => {

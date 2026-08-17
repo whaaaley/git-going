@@ -2,6 +2,7 @@ import { ConfigError } from './config.ts'
 import { runValidate } from './commands/validate.ts'
 import { runTreesize } from './commands/treesize.ts'
 import { runUncommitted } from './commands/uncommitted.ts'
+import { safeAsync } from './utils/safe.utils.ts'
 
 export const version = '0.1.0'
 
@@ -42,9 +43,9 @@ const main = async (): Promise<number> => {
 
   // The warning is advice, so a bad config is reported and the hook still passes.
   if (command === 'uncommitted') {
-    try {
-      await runUncommitted(rest)
-    } catch (error) {
+    const { error } = await safeAsync(() => runUncommitted(rest))
+
+    if (error) {
       if (!(error instanceof ConfigError)) throw error
 
       console.error(`error: ${error.message}`)
@@ -59,11 +60,7 @@ const main = async (): Promise<number> => {
 
   // A treesize failure would surface as a broken agent edit, so it stays silent and exits 0.
   if (command === 'treesize') {
-    try {
-      await runTreesize(rest)
-    } catch {
-      return 0
-    }
+    await safeAsync(() => runTreesize(rest))
 
     return 0
   }
@@ -74,17 +71,13 @@ const main = async (): Promise<number> => {
 }
 
 if (import.meta.main) {
-  let code = 0
+  const { data: code, error } = await safeAsync(() => main())
 
-  try {
-    code = await main()
-  } catch (error) {
-    if (error instanceof ConfigError) {
-      console.error(`error: ${error.message}`)
-      code = 1
-    } else {
-      throw error
-    }
+  if (error && !(error instanceof ConfigError)) throw error
+
+  if (error) {
+    console.error(`error: ${error.message}`)
+    Deno.exit(1)
   }
 
   Deno.exit(code)
